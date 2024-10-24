@@ -1,0 +1,285 @@
+En mi proyecto de express tengo esta estructura:
+
+-|-- config
+-    |-- db - copia.js
+-    |-- db.js
+-    |-- testConexionBd.js
+-|-- controllers
+-    |-- tablasController.js
+-|-- middlewares
+-    |-- controlErroresRutas.js
+-|-- models
+-    |-- tablasModel.js
+-|-- routes
+-    |-- index.js
+-    |-- tablasRoute.js
+-|-- .env
+-|-- app - copia.js
+-|-- app.js
+-|-- backend.lnk
+-|-- ESTRUCT_BKEND_PSH_1D2.BAT
+-|-- ESTRUCT_BKEND_PSH_2D2.PS1
+-|-- iaaaaaaaaaaaaaaaaaaaaaaaaaaaa.txt
+-|-- package-lock.json
+-|-- package.json
+
+
+
+
+Este es ek fuchero app.js
+
+
+
+// app.js
+
+const express = require('express');
+require('dotenv').config(); // Cargar variables de entorno
+
+const app = express();
+const rutas = require('./routes'); // Importar las rutas centralizadas
+const { handle404, handleError } = require('./middlewares/controlErroresRutas'); // Importar los controladores de error
+
+// Middleware para parsear JSON
+app.use(express.json());
+
+// Usar las rutas centralizadas
+app.use('/', rutas);
+
+// Manejo de rutas no encontradas (404)
+app.use(handle404);
+
+// Manejo de errores generales (500)
+app.use(handleError);
+
+// Levantar el servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
+});
+
+
+
+
+Este es el fichero index.js
+
+
+const express = require('express');
+const router = express.Router();
+
+// Importar las rutas
+const tablasRoute = require('./tablasRoute');
+
+// Asignar las rutas con sus respectivos prefijos
+router.use('/tablas', tablasRoute);
+
+
+
+module.exports = router;
+
+
+
+
+ste es el fichero tablasRoute.js
+// routes/tablasRoute.js
+
+
+
+const express = require('express');
+const router = express.Router();
+const tablasController = require('../controllers/tablasController');
+
+// Rutas CRUD para tablas
+router.get('/', tablasController.obtenerTodos);
+router.get('/:tabla', tablasController.obtenerTodos); // Dependiendo de cómo desees estructurar
+router.get('/:tabla/:id', tablasController.obtenerPorId);
+router.post('/:tabla', tablasController.crear);
+router.put('/:tabla/:id', tablasController.actualizar);
+router.delete('/:tabla/:id', tablasController.eliminar);
+
+module.exports = router;
+
+
+
+Este es el fichero tablasController.js
+
+// controllers/tablasController.js
+const tablasModel = require('../models/tablasModel');
+
+// Lista blanca de tablas permitidas
+const tablasPermitidas = [
+   'activos'
+    ,'activos_parciales'
+    ,'empresas'
+    ,'test'
+    ,'idiomas'
+    ,'idioma_palabras'
+    ,'idiomas.frases'
+    ,'test'
+    ,'usuarios'
+    ,'usuarios_conig'
+    ,'usuario_empresa'
+];
+
+const tablasController = {
+    obtenerTodos: async (req, res) => {
+        const { tabla } = req.params;
+
+        if (!tablasPermitidas.includes(tabla)) {
+            return res.status(400).json({ error: 'Tabla no permitida' });
+        }
+
+        try {
+            const registros = await tablasModel.obtenerTodos(tabla);
+            res.json(registros);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Error al obtener los registros' });
+        }
+    },
+
+    obtenerPorId: async (req, res) => {
+        const { tabla, id } = req.params;
+
+        if (!tablasPermitidas.includes(tabla)) {
+            return res.status(400).json({ error: 'Tabla no permitida' });
+        }
+
+        try {
+            const registro = await tablasModel.obtenerPorId(tabla, id);
+            if (!registro) {
+                return res.status(404).json({ error: 'Registro no encontrado' });
+            }
+            res.json(registro);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Error al obtener el registro' });
+        }
+    },
+
+    crear: async (req, res) => {
+        const { tabla } = req.params;
+        const datos = req.body;
+
+        if (!tablasPermitidas.includes(tabla)) {
+            return res.status(400).json({ error: 'Tabla no permitida' });
+        }
+
+        try {
+            const insertId = await tablasModel.crear(tabla, datos);
+            res.status(201).json({ id: insertId });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Error al crear el registro' });
+        }
+    },
+
+    actualizar: async (req, res) => {
+        const { tabla, id } = req.params;
+        const datos = req.body;
+
+        if (!tablasPermitidas.includes(tabla)) {
+            return res.status(400).json({ error: 'Tabla no permitida' });
+        }
+
+        try {
+            const filasAfectadas = await tablasModel.actualizar(tabla, id, datos);
+            if (filasAfectadas === 0) {
+                return res.status(404).json({ error: 'Registro no encontrado' });
+            }
+            res.json({ mensaje: 'Registro actualizado' });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Error al actualizar el registro' });
+        }
+    },
+
+    eliminar: async (req, res) => {
+        const { tabla, id } = req.params;
+
+        if (!tablasPermitidas.includes(tabla)) {
+            return res.status(400).json({ error: 'Tabla no permitida' });
+        }
+
+        try {
+            const filasAfectadas = await tablasModel.eliminar(tabla, id);
+            if (filasAfectadas === 0) {
+                return res.status(404).json({ error: 'Registro no encontrado' });
+            }
+            res.json({ mensaje: 'Registro eliminado' });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: 'Error al eliminar el registro' });
+        }
+    }
+};
+
+module.exports = tablasController;
+
+
+x
+
+Este es ek fichero tablesModel.js
+
+
+// models/tablasModel.js
+const db = require('../config/db');
+
+const tablasModel = {
+    obtenerTodos: async (tabla) => {
+        const query = `SELECT * FROM ??`;
+        const [rows] = await db.promise().query(query, [tabla]);
+        return rows;
+    },
+
+    obtenerPorId: async (tabla, id) => {
+        const query = `SELECT * FROM ?? WHERE id = ?`;
+        const [rows] = await db.promise().query(query, [tabla, id]);
+        return rows[0];
+    },
+
+    crear: async (tabla, datos) => {
+        const query = `INSERT INTO ?? SET ?`;
+        const [result] = await db.promise().query(query, [tabla, datos]);
+        return result.insertId;
+    },
+
+    actualizar: async (tabla, id, datos) => {
+        const query = `UPDATE ?? SET ? WHERE id = ?`;
+        const [result] = await db.promise().query(query, [tabla, datos, id]);
+        return result.affectedRows;
+    },
+
+    eliminar: async (tabla, id) => {
+        const query = `DELETE FROM ?? WHERE id = ?`;
+        const [result] = await db.promise().query(query, [tabla, id]);
+        return result.affectedRows;
+    }
+};
+
+module.exports = tablasModel;
+
+
+
+Este es el fichero controlErroresRutas.js
+
+
+
+// middlewares/controlErroresRutas.js
+
+// Errores 404 (Ruta no encontrada)
+const handle404 = (req, res, next) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+};
+
+// Errores generales del servidor
+const handleError = (err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({ error: 'Error del servidor' });
+};
+
+module.exports = {
+    handle404,
+    handleError
+};
+
+
